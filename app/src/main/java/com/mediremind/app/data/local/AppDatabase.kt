@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mediremind.app.data.local.dao.DoseHistoryDao
 import com.mediremind.app.data.local.dao.MedicationDao
@@ -24,7 +25,7 @@ import kotlinx.coroutines.launch
         DoseHistoryEntity::class,
         SavedPlaceEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +39,14 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Agregar columna userId a dose_history con valor por defecto
+                db.execSQL("ALTER TABLE dose_history ADD COLUMN userId TEXT NOT NULL DEFAULT 'guest_local'")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_dose_history_userId ON dose_history(userId)")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope = CoroutineScope(Dispatchers.IO)): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -45,8 +54,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "mediremind.db"
                 )
-                    .addCallback(DatabaseCallback(scope))
+                    .addMigrations(MIGRATION_1_2)
                     .fallbackToDestructiveMigration()
+                    .addCallback(DatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
                 instance

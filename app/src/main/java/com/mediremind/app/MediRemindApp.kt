@@ -11,13 +11,15 @@ import com.mediremind.app.notification.NotificationHelper
 class MediRemindApp : Application() {
 
     val database by lazy { AppDatabase.getDatabase(this) }
+    val authRepository by lazy { AuthRepository(this) }
     val medicationRepository by lazy { MedicationRepository(database.medicationDao()) }
     val reminderRepository by lazy {
         ReminderRepository(
             context = this,
             reminderDao = database.reminderDao(),
             medicationDao = database.medicationDao(),
-            doseHistoryDao = database.doseHistoryDao()
+            doseHistoryDao = database.doseHistoryDao(),
+            authRepository = authRepository
         )
     }
     val locationRepository by lazy {
@@ -26,7 +28,6 @@ class MediRemindApp : Application() {
             savedPlaceDao = database.savedPlaceDao()
         )
     }
-    val authRepository by lazy { AuthRepository(this) }
 
     override fun onCreate() {
         super.onCreate()

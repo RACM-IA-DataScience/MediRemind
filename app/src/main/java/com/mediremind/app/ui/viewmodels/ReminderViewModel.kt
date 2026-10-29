@@ -30,13 +30,13 @@ class ReminderViewModel(private val repository: ReminderRepository) : ViewModel(
                 _uiState.update { it.copy(reminders = list) }
             }
         }
-        // Observar historial de hoy
+        // Observar historial de hoy filtrado por el usuario actual
         viewModelScope.launch {
             repository.getTodayHistory().collect { history ->
                 _uiState.update { it.copy(todayHistory = history) }
             }
         }
-        // Observar historial completo
+        // Observar historial completo filtrado por el usuario actual
         viewModelScope.launch {
             repository.getAllHistory().collect { full ->
                 _uiState.update { it.copy(fullHistory = full) }
@@ -103,6 +103,17 @@ class ReminderViewModel(private val repository: ReminderRepository) : ViewModel(
                 actualTimeMillis = actualTimeMillis,
                 notes = notes
             )
+            refreshStats()
+        }
+    }
+
+    /**
+     * Permite eliminar una toma del historial por equivocación o corrección del paciente.
+     * Si restoreStock es verdadero, reintegra la dosis tomada al inventario disponible.
+     */
+    fun deleteHistoryEntry(history: DoseHistoryEntity, restoreStock: Boolean = true) {
+        viewModelScope.launch {
+            repository.deleteHistoryEntry(history, restoreStock)
             refreshStats()
         }
     }

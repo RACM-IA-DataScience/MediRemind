@@ -8,7 +8,9 @@ import com.mediremind.app.data.local.dao.ReminderWithMedication
 import com.mediremind.app.data.local.entities.DoseHistoryEntity
 import com.mediremind.app.data.local.entities.ReminderEntity
 import com.mediremind.app.notification.NotificationHelper
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import java.util.Calendar
 
 data class AdherenceStats(
@@ -22,7 +24,8 @@ class ReminderRepository(
     private val context: Context,
     private val reminderDao: ReminderDao,
     private val medicationDao: MedicationDao,
-    private val doseHistoryDao: DoseHistoryDao
+    private val doseHistoryDao: DoseHistoryDao,
+    private val authRepository: AuthRepository
 ) {
 
     fun getActiveReminders(): Flow<List<ReminderWithMedication>> =
@@ -62,16 +65,16 @@ class ReminderRepository(
     }
 
     /**
-     * Registra una dosis tomada a partir de una alarma programada.
-     * Permite especificar una hora real de toma diferente al momento actual,
-     * guardando con precisión el momento exacto en que se consumió el fármaco.
+     * Registra una dosis tomada a partir de una alarma programada,
+     * asociándola estrictamente al usuario autenticado actual (userId).
      */
     suspend fun recordDoseTaken(
         item: ReminderWithMedication,
         actualTimeMillis: Long = System.currentTimeMillis(),
         notes: String = ""
     ) {
-        // Calcular la hora a la que estuvo programada la alarma el día de hoy
+        val currentUserId = authRepository.getCurrentUserId()
+
         val scheduledCal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, item.reminder.hour)
             set(Calendar.MINUTE, item.reminder.minute)
@@ -83,9 +86,10 @@ class ReminderRepository(
         // Descontar inventario
         medicationDao.decrementStock(item.reminder.medicationId, item.reminder.dosageAmount.toInt().coerceAtLeast(1))
 
-        // Registrar en historial con hora programada y hora real de ingestión
+        // Registrar en historial con hora programada, hora real y userId
         doseHistoryDao.insertHistory(
             DoseHistoryEntity(
+                userId = currentUserId,
                 medicationId = item.reminder.medicationId,
                 reminderId = item.reminder.id,
                 medicationName = item.medicationName,
@@ -101,8 +105,7 @@ class ReminderRepository(
     }
 
     /**
-     * Registra una toma manual o extemporánea (por ejemplo si no se tenía una alarma activa
-     * o se tomó un medicamento de rescate), permitiendo indicar la hora exacta de la toma.
+     * Registra una toma manual o extemporánea encapsulada para el usuario activo.
      */
     suspend fun recordManualDoseTaken(
         medicationId: Long,
@@ -114,10 +117,12 @@ class ReminderRepository(
         actualTimeMillis: Long = System.currentTimeMillis(),
         notes: String = ""
     ) {
+        val currentUserId = authRepository.getCurrentUserId()
         medicationDao.decrementStock(medicationId, dosageAmount.toInt().coerceAtLeast(1))
 
         doseHistoryDao.insertHistory(
             DoseHistoryEntity(
+                userId = currentUserId,
                 medicationId = medicationId,
                 reminderId = reminderId,
                 medicationName = medicationName,
@@ -136,6 +141,8 @@ class ReminderRepository(
     }
 
     suspend fun recordDoseSkipped(item: ReminderWithMedication, reason: String = "") {
+        val currentUserId = authRepository.getCurrentUserId()
+
         val scheduledCal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, item.reminder.hour)
             set(Calendar.MINUTE, item.reminder.minute)
@@ -145,6 +152,7 @@ class ReminderRepository(
 
         doseHistoryDao.insertHistory(
             DoseHistoryEntity(
+                userId = currentUserId,
                 medicationId = item.reminder.medicationId,
                 reminderId = item.reminder.id,
                 medicationName = item.medicationName,
@@ -159,22 +167,45 @@ class ReminderRepository(
         reminderDao.updateLastAction(item.reminder.id, System.currentTimeMillis())
     }
 
-    fun getAllHistory(): Flow<List<DoseHistoryEntity>> = doseHistoryDao.getAllHistory()
+    /**
+     * Permite eliminar un registro del historial cuando el usuario se haya equivocado.
+     * Opcionalmente restaura la cantidad tomada de vuelta al inventario del botiquín.
+     */
+    suspend fun deleteHistoryEntry(history: DoseHistoryEntity, restoreStock: Boolean = true) {
+        if (restoreStock && history.status == "TAKEN") {
+            val amount = history.dosageTaken.toDoubleOrNull()?.toInt()?.coerceAtLeast(1) ?: 1
+            medicationDao.incrementStock(history.medicationId, amount)
+        }
+        doseHistoryDao.deleteHistory(history)
+    }
 
-    fun getTodayHistory(): Flow<List<DoseHistoryEntity>> {
+    /**
+     * Flujo reactivo que emite el historial exclusivo del usuario activo en cada momento.
+     * Al cambiar de cuenta (ej. Invitado <-> Google), la lista se actualiza instantáneamente.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun getAllHistory(): Flow<List<DoseHistoryEntity>> = authRepository.currentUser.flatMapLatest { user ->
+        val uid = user?.id ?: "guest_local"
+        doseHistoryDao.getAllHistoryForUser(uid)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun getTodayHistory(): Flow<List<DoseHistoryEntity>> = authRepository.currentUser.flatMapLatest { user ->
+        val uid = user?.id ?: "guest_local"
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
-        return doseHistoryDao.getTodayHistory(calendar.timeInMillis)
+        doseHistoryDao.getTodayHistoryForUser(uid, calendar.timeInMillis)
     }
 
     suspend fun getAdherenceStats(days: Int = 7): AdherenceStats {
+        val uid = authRepository.getCurrentUserId()
         val sinceMillis = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        val taken = doseHistoryDao.getTakenCountSince(sinceMillis)
-        val skipped = doseHistoryDao.getSkippedCountSince(sinceMillis)
+        val taken = doseHistoryDao.getTakenCountSince(uid, sinceMillis)
+        val skipped = doseHistoryDao.getSkippedCountSince(uid, sinceMillis)
         val total = taken + skipped
         val percentage = if (total > 0) ((taken.toFloat() / total) * 100).toInt() else 100
 

@@ -44,6 +44,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = AppDatabase.getDatabase(context)
+                val currentUserId = com.mediremind.app.data.repository.AuthRepository(context).getCurrentUserId()
 
                 when (intent.action) {
                     ACTION_TAKE -> {
@@ -66,6 +67,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         // 3. Registrar en historial de adherencia con hora programada y hora real
                         db.doseHistoryDao().insertHistory(
                             DoseHistoryEntity(
+                                userId = currentUserId,
                                 medicationId = medicationId,
                                 reminderId = reminderId,
                                 medicationName = medicationName,
@@ -123,6 +125,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
                         db.doseHistoryDao().insertHistory(
                             DoseHistoryEntity(
+                                userId = currentUserId,
                                 medicationId = medicationId,
                                 reminderId = reminderId,
                                 medicationName = medicationName,

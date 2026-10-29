@@ -26,6 +26,10 @@ class AuthRepository(private val context: Context) {
     private val _currentUser = MutableStateFlow<UserProfile?>(loadSavedUser())
     val currentUser: StateFlow<UserProfile?> = _currentUser.asStateFlow()
 
+    fun getCurrentUserId(): String {
+        return _currentUser.value?.id ?: "guest_local"
+    }
+
     private fun loadSavedUser(): UserProfile? {
         val email = prefs.getString("user_email", null) ?: return null
         val name = prefs.getString("user_name", "Usuario") ?: "Usuario"
@@ -79,7 +83,7 @@ class AuthRepository(private val context: Context) {
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val user = UserProfile(
-                    id = googleIdTokenCredential.id,
+                    id = "google_user_${googleIdTokenCredential.id.replace("@", "_").replace(".", "_")}",
                     displayName = googleIdTokenCredential.displayName ?: "Usuario Google",
                     email = googleIdTokenCredential.id,
                     photoUrl = googleIdTokenCredential.profilePictureUri?.toString(),
@@ -97,10 +101,11 @@ class AuthRepository(private val context: Context) {
 
     /**
      * Permite iniciar sesión de prueba o como invitado local sin conexión a internet.
+     * Mantiene un identificador de usuario local estable para aislar sus tomas.
      */
     fun signInAsGuest(customName: String = "Paciente Invitado") {
         val guest = UserProfile(
-            id = "guest_${System.currentTimeMillis()}",
+            id = "guest_local",
             displayName = customName,
             email = "modo.local@mediremind.app",
             photoUrl = null,
@@ -111,12 +116,14 @@ class AuthRepository(private val context: Context) {
 
     /**
      * Inicia sesión simulando una cuenta de Google para pruebas en emuladores sin Play Services configurados.
+     * Encapsula los datos bajo un id único derivado del correo.
      */
     fun signInMockGoogle(name: String, email: String) {
+        val cleanEmail = email.trim().lowercase().replace("@", "_").replace(".", "_")
         val mock = UserProfile(
-            id = "google_mock_${email.hashCode()}",
+            id = "google_user_$cleanEmail",
             displayName = name,
-            email = email,
+            email = email.trim(),
             photoUrl = null,
             isGuest = false
         )

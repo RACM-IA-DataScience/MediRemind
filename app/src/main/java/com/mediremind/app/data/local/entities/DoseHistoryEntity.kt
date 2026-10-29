@@ -1,6 +1,7 @@
 package com.mediremind.app.data.local.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -8,12 +9,17 @@ import java.util.Locale
 
 /**
  * Registro de auditoría y adherencia para cada toma de medicamento.
- * Registra tanto la hora programada originalmente como la hora real en que se tomó el medicamento.
+ * Registra tanto la hora programada originalmente como la hora real en que se tomó el medicamento,
+ * encapsulado de manera estricta por el identificador de usuario (userId).
  */
-@Entity(tableName = "dose_history")
+@Entity(
+    tableName = "dose_history",
+    indices = [Index(value = ["userId"])]
+)
 data class DoseHistoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: String = "guest_local",        // ID único del usuario (ej. 'guest_local', 'google_user_...')
     val medicationId: Long,
     val reminderId: Long? = null,
     val medicationName: String,
