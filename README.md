@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" width="160" alt="MediRemind Logo" style="border-radius: 28px;" />
+</p>
+
 # 💊 MediRemind — Asistente Inteligente y Recordatorio de Medicamentos para Android
 
 <p align="center">

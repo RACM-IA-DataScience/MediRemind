@@ -1,5 +1,6 @@
 package com.mediremind.app.ui.screens.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,21 +55,14 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Icono de la aplicación
-            Box(
+            // Logotipo oficial de la aplicación
+            Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "MediRemind Logo",
                 modifier = Modifier
-                    .size(90.dp)
-                    .clip(CircleShape)
-                    .background(TealPrimary.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Medication,
-                    contentDescription = null,
-                    tint = TealPrimary,
-                    modifier = Modifier.size(54.dp)
-                )
-            }
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(22.dp))
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 
