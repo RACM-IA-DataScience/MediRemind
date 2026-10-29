@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">MediRemind</string>
+    <string name="notification_channel_reminders_name">Recordatorios de Medicamentos</string>
+    <string name="notification_channel_reminders_desc">Alarmas y recordatorios para tomar tus dosis a tiempo</string>
+    <string name="notification_channel_geofence_name">Alertas de Ubicación (Casa / Trabajo)</string>
+    <string name="notification_channel_geofence_desc">Notificaciones automáticas al llegar o salir de lugares guardados</string>
+    <string name="default_web_client_id">YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+</resources>

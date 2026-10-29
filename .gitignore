@@ -1,0 +1,42 @@
+# Android & Gradle
+*.iml
+.gradle
+build/
+*/build/
+local.properties
+.bundle
+
+# Android Studio / IntelliJ IDEA
+.idea/
+.idea/caches
+.idea/libraries
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+*.iws
+out/
+
+# Compilados y Paquetes Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Native / NDK
+.externalNativeBuild
+.cxx
+
+# Capturas de pantalla y perfiles
+captures/
+
+# Sistema Operativo (Windows / Mac / Linux)
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Registro de dependencias y logs
+*.log
